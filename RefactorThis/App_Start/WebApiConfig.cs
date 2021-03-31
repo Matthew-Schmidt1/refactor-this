@@ -1,4 +1,5 @@
-﻿using System.Web.Http;
+﻿using refactor_me.App_Start;
+using System.Web.Http;
 
 namespace refactor_this
 {
@@ -10,15 +11,10 @@ namespace refactor_this
             var formatters = GlobalConfiguration.Configuration.Formatters;
             formatters.Remove(formatters.XmlFormatter);
             formatters.JsonFormatter.Indent = true;
-
+            SerilogConfig.Configer();
             // Web API routes
             config.MapHttpAttributeRoutes();
-
-            config.Routes.MapHttpRoute(
-                name: "DefaultApi",
-                routeTemplate: "api/{controller}/{id}",
-                defaults: new { id = RouteParameter.Optional }
-            );
+            
         }
     }
 }

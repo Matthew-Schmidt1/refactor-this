@@ -1,5 +1,6 @@
 ﻿using refactor_this.Models;
 using System;
+using System.Net;
 using System.Web.Http;
 
 namespace refactor_this.Controllers
@@ -26,9 +27,7 @@ namespace refactor_this.Controllers
         public IHttpActionResult GetProduct(Guid id)
         {
             var product = Product.Load(id);
-            if (product == null)
-                return NotFound();
-
+            if (product == null) return NotFound();
             return Ok(product);
         }
 
@@ -37,8 +36,14 @@ namespace refactor_this.Controllers
         public IHttpActionResult Create(Product product)
         {
             if (product == null) return BadRequest();
-            product.Save();
-            return Ok(product);
+            if (product.Save())
+            {
+                return Ok(product);
+            }
+            else
+            {
+                return FailedToSave();
+            }
         }
 
         [Route("{id}")]
@@ -47,18 +52,14 @@ namespace refactor_this.Controllers
         {
             var orig = Product.Load(id);
             if (orig == null) return NotFound();
-
-            orig.Name = product.Name;
-            orig.Description = product.Description;
-            orig.Price = product.Price;
-            orig.DeliveryPrice = product.DeliveryPrice;
-
-            if (!orig.IsNew)
+            if (orig.Update(product))
             {
-                orig.Save();
                 return Ok(orig);
             }
-            else { return BadRequest(); }
+            else
+            {
+                return FailedToSave();
+            }
         }
 
         [Route("{id}")]
@@ -67,10 +68,19 @@ namespace refactor_this.Controllers
         {
             var product = Product.Load(id);
             if (product == null) return NotFound();
-            product.Delete();
-            return Ok(product);
+            if (product.Delete())
+            {
+                return Ok(product);
+            }
+            else
+            {
+                return FailedToSave();
+            }
         }
 
-    
+        private IHttpActionResult FailedToSave()
+        {
+            return Content(HttpStatusCode.BadRequest, "Failed to Save the change!");
+        }
     }
 }

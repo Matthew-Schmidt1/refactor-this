@@ -1,5 +1,6 @@
 ﻿using refactor_this.Models;
 using System;
+using System.Net;
 using System.Web.Http;
 
 namespace refactor_me.Controllers
@@ -20,9 +21,7 @@ namespace refactor_me.Controllers
         {
             if (Product.Load(productId) == null) return NotFound();
             var option = ProductOption.Load(id);
-            if (option == null)
-                return NotFound();
-
+            if (option == null) return NotFound();
             return Ok(option);
         }
 
@@ -32,8 +31,15 @@ namespace refactor_me.Controllers
         {
             if (Product.Load(productId) == null) return NotFound();
             option.ProductId = productId;
-            option.Save();
-            return Ok(option);
+
+            if (option.Save())
+            {
+                return Ok(option);
+            }
+            else
+            {
+                return FailedToSave();
+            }
         }
 
         [Route("{productId}/options/{id}")]
@@ -43,17 +49,14 @@ namespace refactor_me.Controllers
             if (Product.Load(productId) == null) return NotFound();
             var orig = ProductOption.Load(id);
             if (orig == null) return NotFound();
-            orig.Name = option.Name;
-            orig.Description = option.Description;
 
-            if (!orig.IsNew)
+            if (orig.Update(option))
             {
-                orig.Save();
                 return Ok(orig);
             }
             else
             {
-                return BadRequest();
+                return FailedToSave();
             }
         }
 
@@ -63,10 +66,21 @@ namespace refactor_me.Controllers
         {
             if (Product.Load(productId) == null) return NotFound();
             var itemToBeDeleted = ProductOption.Load(id);
-            if (itemToBeDeleted == null)
-                return NotFound();
-            itemToBeDeleted.Delete();
-            return Ok(itemToBeDeleted);
+            if (itemToBeDeleted == null) return NotFound();
+
+            if (itemToBeDeleted.Delete())
+            {
+                return Ok(itemToBeDeleted);
+            }
+            else
+            {
+                return FailedToSave();
+            }
+        }
+
+        private IHttpActionResult FailedToSave()
+        {
+            return Content(HttpStatusCode.BadRequest, "Failed to Save the change!");
         }
     }
 }

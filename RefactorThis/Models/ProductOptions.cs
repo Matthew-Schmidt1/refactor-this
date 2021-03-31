@@ -14,18 +14,11 @@ namespace refactor_this.Models
             LoadProductOptions(productId.ToString());
         }
 
-        private void LoadProductOptions(string where)
+        private void LoadProductOptions(string productId)
         {
             using (var conn = Helpers.DatabaseConnection)
             {
-                if (where == null)
-                {
-                    Items = conn.Query<ProductOption>("select * from productoption").ToList();
-                }
-                else
-                {
-                    Items = conn.Query<ProductOption>("select * from productoption where productid = @productid", new { productid = where }).ToList();
-                }
+                Items = conn.Query<ProductOption>("select * from productoption where productid = @productid", new { productid = productId }).ToList();
             }
         }
     }

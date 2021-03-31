@@ -1,8 +1,8 @@
 ﻿using Dapper;
 using Newtonsoft.Json;
+using Serilog;
 using System;
 using System.Linq;
-using System.Threading.Tasks;
 
 namespace refactor_this.Models
 {
@@ -20,26 +20,34 @@ namespace refactor_this.Models
 
         [JsonIgnore]
         public bool IsNew { get; private set; }
-
+        
         private Product()
         {
             Id = Guid.NewGuid();
             IsNew = true;
         }
 
-        public static Product Load(Guid id)
+        internal static Product Load(Guid id)
         {
             using (var conn = Helpers.DatabaseConnection)
             {
                 var result = conn.Query<Product>("select * from product Where id like @id", new { id = $"%{id}%" }).FirstOrDefault();
                 if (result == null) return null;
+
+                //As we are loading this we know it is not new.
                 result.IsNew = false;
+
+                Log.ForContext("Product", result).Verbose(nameof(Load));
                 return result;
             }
+            
         }
-
-        public void Save()
+        /// <summary>
+        /// Saves this product to the database
+        /// </summary>
+        internal bool Save()
         {
+            Log.ForContext("Product", this).Verbose(nameof(Save));
             using (var conn = Helpers.DatabaseConnection)
             {
                 string query;
@@ -51,30 +59,47 @@ namespace refactor_this.Models
                 {
                     query = "update product set name = @Name, description =  @Description, price = @Price, deliveryprice = @DeliveryPrice where id = @id ";
                 }
-                conn.Execute(query, new { id = Id, name = Name, description = Description, price = Price, deliveryPrice = DeliveryPrice });
+                //checking the number or rows changed is equal to 1.
+                //So we can confirm there has been a change to the database.
+                return conn.Execute(query, new { id = Id, name = Name, description = Description, price = Price, deliveryPrice = DeliveryPrice }) == 1;
             }
         }
-
-        public async Task DeleteAsync()
+        /// <summary>
+        /// Updates this Product to have the same information as the supplied.
+        /// </summary>
+        /// <param name="option">The Supplied Product.</param>
+        /// <returns></returns>
+        internal bool Update(Product product)
         {
+            Log.ForContext("Product", this).Verbose(nameof(Update));
+            Name = product.Name;
+            Description = product.Description;
+            Price = product.Price;
+            DeliveryPrice = product.DeliveryPrice;
+            return Save();
+        }
+        /// <summary>
+        /// Deletes this Product from the database.
+        /// </summary>
+        internal bool Delete()
+        {
+            Log.ForContext("Product", this).Verbose(nameof(Delete));
             foreach (var option in new ProductOptions(Id).Items)
                 option.Delete();
 
             using (var conn = Helpers.DatabaseConnection)
             {
-                await conn.ExecuteAsync("delete from product where id = @id", new { id = Id }).ConfigureAwait(false);
+                //checking the number or rows changed is equal to 1.
+                //So we can confirm there has been a change to the database.
+                return conn.Execute("delete from product where id = @id", new { id = Id }) == 1;
             }
         }
 
-        public void Delete()
+        public override string ToString()
         {
-            foreach (var option in new ProductOptions(Id).Items)
-                option.Delete();
-
-            using (var conn = Helpers.DatabaseConnection)
-            {
-                conn.Execute("delete from product where id = @id", new { id = Id });
-            }
+            return JsonConvert.SerializeObject(this);
         }
+
     }
+
 }
