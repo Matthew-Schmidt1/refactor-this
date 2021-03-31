@@ -1,9 +1,6 @@
 ﻿using refactor_this.Models;
 using System;
-
-
 using System.Web.Http;
-
 
 namespace refactor_me.Controllers
 {
