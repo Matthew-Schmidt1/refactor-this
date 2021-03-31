@@ -37,7 +37,7 @@ namespace refactor_this.Controllers
         [HttpPost]
         public void Create(Product product)
         {
-            product.Save();
+            product.SaveAsync();
         }
 
         [Route("{id}")]
@@ -53,7 +53,7 @@ namespace refactor_this.Controllers
             };
 
             if (!orig.IsNew)
-                orig.Save();
+                orig.SaveAsync();
         }
 
         [Route("{id}")]

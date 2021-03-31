@@ -2,6 +2,9 @@
 using System.Collections.Generic;
 using System.Data.SqlClient;
 using Newtonsoft.Json;
+using Dapper;
+using System.Linq;
+using System.Threading.Tasks;
 
 namespace refactor_this.Models
 {
@@ -11,27 +14,29 @@ namespace refactor_this.Models
 
         public Products()
         {
-            LoadProducts(null);
+            LoadProducts(string.Empty);
         }
 
         public Products(string name)
         {
-            LoadProducts($"where lower(name) like '%{name.ToLower()}%'");
+            LoadProducts(name);
         }
 
-        private void LoadProducts(string where)
+        private void LoadProducts(string name)
         {
             Items = new List<Product>();
-            var conn = Helpers.NewConnection();
-            var cmd = new SqlCommand($"select id from product {where}", conn);
-            conn.Open();
 
-            var rdr = cmd.ExecuteReader();
-            while (rdr.Read())
+            using var conn = Helpers.NewConnection();
+
+            if (name == null)
             {
-                var id = Guid.Parse(rdr["id"].ToString());
-                Items.Add(new Product(id));
+                Items = conn.Query<Product>("select id from product").ToList();
             }
+            else
+            {
+                Items = conn.Query<Product>("select id from product Where name like @name", new { name = $"%{name}%" }).ToList();
+            }
+
         }
     }
 
@@ -46,7 +51,7 @@ namespace refactor_this.Models
         public decimal Price { get; set; }
 
         public decimal DeliveryPrice { get; set; }
-        
+
         [JsonIgnore]
         public bool IsNew { get; }
 
@@ -56,34 +61,44 @@ namespace refactor_this.Models
             IsNew = true;
         }
 
-        public Product(Guid id)
+        public async Task SaveAsync()
         {
-            IsNew = true;
-            var conn = Helpers.NewConnection();
-            var cmd = new SqlCommand($"select * from product where id = '{id}'", conn);
-            conn.Open();
-
-            var rdr = cmd.ExecuteReader();
-            if (!rdr.Read())
-                return;
-
-            IsNew = false;
-            Id = Guid.Parse(rdr["Id"].ToString());
-            Name = rdr["Name"].ToString();
-            Description = (DBNull.Value == rdr["Description"]) ? null : rdr["Description"].ToString();
-            Price = decimal.Parse(rdr["Price"].ToString());
-            DeliveryPrice = decimal.Parse(rdr["DeliveryPrice"].ToString());
+            using var conn = Helpers.NewConnection();
+            if (IsNew)
+            {
+                await conn.ExecuteAsync("insert into product (id, name, description, price, deliveryprice) values (@id, @name, @description, @price, @deliveryPrice )",
+                new { id = Id, name = Name, description = Description, price = Price, DeliveryPrice = DeliveryPrice }).ConfigureAwait(false);
+            }
+            else
+            {
+                await conn.ExecuteAsync("update product set name = @Name, description =  @Description, , price = @Price, deliveryprice = @DeliveryPrice where id = @id )",
+                new { id = Id, name = Name, description = Description, price = Price, DeliveryPrice = DeliveryPrice }).ConfigureAwait(false);
+            }
         }
 
         public void Save()
         {
-            var conn = Helpers.NewConnection();
-            var cmd = IsNew ? 
-                new SqlCommand($"insert into product (id, name, description, price, deliveryprice) values ('{Id}', '{Name}', '{Description}', {Price}, {DeliveryPrice})", conn) : 
-                new SqlCommand($"update product set name = '{Name}', description = '{Description}', price = {Price}, deliveryprice = {DeliveryPrice} where id = '{Id}'", conn);
+            using var conn = Helpers.NewConnection();
+            if (IsNew)
+            {
+                conn.Execute("insert into product (id, name, description, price, deliveryprice) values (@id, @name, @description, @price, @deliveryPrice )",
+                new { id = Id, name = Name, description = Description, price = Price, DeliveryPrice = DeliveryPrice });
+            }
+            else
+            {
+                conn.Execute("update product set name = @Name, description =  @Description, , price = @Price, deliveryprice = @DeliveryPrice where id = @id )",
+                new { id = Id, name = Name, description = Description, price = Price, DeliveryPrice = DeliveryPrice });
+            }
+        }
 
-            conn.Open();
-            cmd.ExecuteNonQuery();
+        public async Task DeleteAsync()
+        {
+            foreach (var option in new ProductOptions(Id).Items)
+                option.Delete();
+
+            using var conn = Helpers.NewConnection();
+          
+            await conn.ExecuteAsync("delete from product where id = @id",new { id = Id}).ConfigureAwait(false);
         }
 
         public void Delete()
@@ -91,10 +106,9 @@ namespace refactor_this.Models
             foreach (var option in new ProductOptions(Id).Items)
                 option.Delete();
 
-            var conn = Helpers.NewConnection();
-            conn.Open();
-            var cmd = new SqlCommand($"delete from product where id = '{Id}'", conn);
-            cmd.ExecuteNonQuery();
+            using var conn = Helpers.NewConnection();
+
+            conn.Execute("delete from product where id = @id", new { id = Id });
         }
     }
 
@@ -115,7 +129,7 @@ namespace refactor_this.Models
         private void LoadProductOptions(string where)
         {
             Items = new List<ProductOption>();
-            var conn = Helpers.NewConnection();
+            using var conn = Helpers.NewConnection();
             var cmd = new SqlCommand($"select id from productoption {where}", conn);
             conn.Open();
 
@@ -150,7 +164,7 @@ namespace refactor_this.Models
         public ProductOption(Guid id)
         {
             IsNew = true;
-            var conn = Helpers.NewConnection();
+            using var conn = Helpers.NewConnection();
             var cmd = new SqlCommand($"select * from productoption where id = '{id}'", conn);
             conn.Open();
 
@@ -167,7 +181,7 @@ namespace refactor_this.Models
 
         public void Save()
         {
-            var conn = Helpers.NewConnection();
+            using var conn = Helpers.NewConnection();
             var cmd = IsNew ?
                 new SqlCommand($"insert into productoption (id, productid, name, description) values ('{Id}', '{ProductId}', '{Name}', '{Description}')", conn) :
                 new SqlCommand($"update productoption set name = '{Name}', description = '{Description}' where id = '{Id}'", conn);
@@ -178,7 +192,7 @@ namespace refactor_this.Models
 
         public void Delete()
         {
-            var conn = Helpers.NewConnection();
+            using var conn = Helpers.NewConnection();
             conn.Open();
             var cmd = new SqlCommand($"delete from productoption where id = '{Id}'", conn);
             cmd.ExecuteReader();
