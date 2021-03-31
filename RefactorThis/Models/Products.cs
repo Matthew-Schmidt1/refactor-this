@@ -1,6 +1,5 @@
-﻿using System.Collections.Generic;
-using System.Data.SqlClient;
-using Dapper;
+﻿using Dapper;
+using System.Collections.Generic;
 using System.Linq;
 
 namespace refactor_this.Models
@@ -23,7 +22,7 @@ namespace refactor_this.Models
         {
             Items = new List<Product>();
 
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
                 if (name == null)
                 {

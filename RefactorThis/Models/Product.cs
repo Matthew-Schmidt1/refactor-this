@@ -1,8 +1,8 @@
-﻿using System;
+﻿using Dapper;
 using Newtonsoft.Json;
-using Dapper;
-using System.Threading.Tasks;
+using System;
 using System.Linq;
+using System.Threading.Tasks;
 
 namespace refactor_this.Models
 {
@@ -19,9 +19,9 @@ namespace refactor_this.Models
         public decimal DeliveryPrice { get; set; }
 
         [JsonIgnore]
-        public bool IsNew { get; } = false;
+        public bool IsNew { get; private set; }
 
-        public Product()
+        private Product()
         {
             Id = Guid.NewGuid();
             IsNew = true;
@@ -29,49 +29,29 @@ namespace refactor_this.Models
 
         public static Product Load(Guid id)
         {
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
-                return conn.Query<Product>("select id from product Where id like @id", new { id = $"%{id}%" }).FirstOrDefault();
-            }
-        }
-
-        public async Task SaveAsync()
-        {
-            using (var conn = Helpers.NewConnection())
-            {
-                if (IsNew)
-                {
-                    await conn.ExecuteAsync("insert into product (id, name, description, price, deliveryprice) values (@id, @name, @description, @price, @deliveryPrice )",
-                    new { id = Id, name = Name, description = Description, price = Price, DeliveryPrice = DeliveryPrice }).ConfigureAwait(false);
-                }
-                else
-                {
-                    await conn.ExecuteAsync("update product set name = @Name, description =  @Description, , price = @Price, deliveryprice = @DeliveryPrice where id = @id )",
-                    new { id = Id, name = Name, description = Description, price = Price, DeliveryPrice = DeliveryPrice }).ConfigureAwait(false);
-                }
+                var result = conn.Query<Product>("select * from product Where id like @id", new { id = $"%{id}%" }).FirstOrDefault();
+                if (result == null) return null;
+                result.IsNew = false;
+                return result;
             }
         }
 
         public void Save()
         {
-            try
+            using (var conn = Helpers.DatabaseConnection)
             {
-                using (var conn = Helpers.NewConnection())
+                string query;
+                if (IsNew)
                 {
-                    if (IsNew)
-                    {
-                        conn.Execute("insert into product (id, name, description, price, deliveryprice) values (@id, @name, @description, @price, @deliveryPrice )",
-                        new { id = Id, name = Name, description = Description, price = Price, deliveryPrice = DeliveryPrice });
-                    }
-                    else
-                    {
-                        conn.Execute("update product set name = @Name, description =  @Description, price = @Price, deliveryprice = @DeliveryPrice where id = @id )",
-                        new { id = Id, name = Name, description = Description, price = Price, DeliveryPrice = DeliveryPrice });
-                    }
+                    query = "insert into product (id, name, description, price, deliveryprice) values (@id, @name, @description, @price, @deliveryPrice)";
                 }
-            }catch(Exception ex)
-            {
-                
+                else
+                {
+                    query = "update product set name = @Name, description =  @Description, price = @Price, deliveryprice = @DeliveryPrice where id = @id ";
+                }
+                conn.Execute(query, new { id = Id, name = Name, description = Description, price = Price, deliveryPrice = DeliveryPrice });
             }
         }
 
@@ -80,7 +60,7 @@ namespace refactor_this.Models
             foreach (var option in new ProductOptions(Id).Items)
                 option.Delete();
 
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
                 await conn.ExecuteAsync("delete from product where id = @id", new { id = Id }).ConfigureAwait(false);
             }
@@ -91,11 +71,10 @@ namespace refactor_this.Models
             foreach (var option in new ProductOptions(Id).Items)
                 option.Delete();
 
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
                 conn.Execute("delete from product where id = @id", new { id = Id });
             }
         }
     }
-
 }

@@ -1,6 +1,6 @@
-﻿using System;
+﻿using Dapper;
+using System;
 using System.Collections.Generic;
-using Dapper;
 using System.Linq;
 
 namespace refactor_this.Models
@@ -9,11 +9,6 @@ namespace refactor_this.Models
     {
         public List<ProductOption> Items { get; private set; }
 
-        public ProductOptions()
-        {
-            LoadProductOptions(null);
-        }
-
         public ProductOptions(Guid productId)
         {
             LoadProductOptions(productId.ToString());
@@ -21,18 +16,17 @@ namespace refactor_this.Models
 
         private void LoadProductOptions(string where)
         {
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
                 if (where == null)
                 {
-                    Items = conn.Query<ProductOption>("select id from productoption").ToList();
+                    Items = conn.Query<ProductOption>("select * from productoption").ToList();
                 }
                 else
                 {
-                    Items = conn.Query<ProductOption>("select id from productoption where productid = @productid", new { productid = where }).ToList();
+                    Items = conn.Query<ProductOption>("select * from productoption where productid = @productid", new { productid = where }).ToList();
                 }
             }
         }
     }
-
 }

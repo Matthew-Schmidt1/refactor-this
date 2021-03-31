@@ -1,14 +1,13 @@
-﻿using System;
+﻿using Dapper;
 using Newtonsoft.Json;
-using Dapper;
-using System.Threading.Tasks;
+using System;
 using System.Linq;
 
 namespace refactor_this.Models
 {
     public class ProductOption
     {
-        public Guid Id { get; set; }
+        public Guid Id { get; }
 
         public Guid ProductId { get; set; }
 
@@ -17,7 +16,7 @@ namespace refactor_this.Models
         public string Description { get; set; }
 
         [JsonIgnore]
-        public bool IsNew { get; } = false;
+        public bool IsNew { get; private set; }
 
         public ProductOption()
         {
@@ -27,59 +26,39 @@ namespace refactor_this.Models
 
         public static ProductOption Load(Guid id)
         {
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
-                return conn.Query<ProductOption>("Select * from productoption where id = @id", new { id }).FirstOrDefault();
-            }
-        }
-        public async Task SaveAsync()
-        {
-            using (var conn = Helpers.NewConnection())
-            {
-                if (IsNew)
-                {
-                    await conn.ExecuteAsync("insert into productoption (id, productid, name, description) values (@Id, @ProductId, @Name, @Description)", new { id = Id, productId = ProductId, name = Name, description = Description }).ConfigureAwait(false);
-                }
-                else
-                {
-                    await conn.ExecuteAsync("update productoption set name = @Name, description = @Description where id = @Id", new { id = Id, productId = ProductId, name = Name, description = Description }).ConfigureAwait(false);
-                }
+                var result = conn.Query<ProductOption>("Select * from productoption where id = @id", new { id }).FirstOrDefault();
+                if (result == null) return null;
+                result.IsNew = false;
+                return result;
             }
         }
 
         public void Save()
         {
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
                 var Paramters = new { id = Id, productId = ProductId, name = Name, description = Description };
-
+                string query;
                 if (IsNew)
                 {
-                    conn.ExecuteAsync("insert into productoption (id, productid, name, description) values (@Id, @ProductId, @Name, @Description)", Paramters);
+                    query = "insert into productoption (id, productid, name, description) values (@Id, @ProductId, @Name, @Description)";
                 }
                 else
                 {
-                    conn.ExecuteAsync("update productoption set name = @Name, description = @Description where id = @Id", Paramters);
+                    query = "update productoption set name = @Name, description = @Description where id = @Id";
                 }
+                conn.Execute(query, Paramters);
             }
         }
 
         public void Delete()
         {
-            using (var conn = Helpers.NewConnection())
+            using (var conn = Helpers.DatabaseConnection)
             {
                 conn.Execute("delete from productoption where id = @id", new { id = Id });
             }
         }
-
-        public async Task DeleteAsync()
-        {
-            using (var conn = Helpers.NewConnection())
-            {
-                await conn.ExecuteAsync("delete from productoption where id = @id", new { id = Id }).ConfigureAwait(false);
-            }
-        }
-
     }
-
 }

@@ -1,7 +1,6 @@
-﻿using System;
-using System.Net;
+﻿using refactor_this.Models;
+using System;
 using System.Web.Http;
-using refactor_this.Models;
 
 namespace refactor_this.Controllers
 {
@@ -38,8 +37,8 @@ namespace refactor_this.Controllers
         public IHttpActionResult Create(Product product)
         {
             if (product == null) return BadRequest();
-            product?.Save();
-            return Ok(Product.Load(product.Id));
+            product.Save();
+            return Ok(product);
         }
 
         [Route("{id}")]
@@ -55,8 +54,11 @@ namespace refactor_this.Controllers
             orig.DeliveryPrice = product.DeliveryPrice;
 
             if (!orig.IsNew)
+            {
                 orig.Save();
-            return Ok();
+                return Ok(orig);
+            }
+            else { return BadRequest(); }
         }
 
         [Route("{id}")]
@@ -95,27 +97,35 @@ namespace refactor_this.Controllers
             if (Product.Load(productId) == null) return NotFound();
             option.ProductId = productId;
             option.Save();
-            return Ok(ProductOption.Load(option.Id));
+            return Ok(option);
         }
 
         [Route("{productId}/options/{id}")]
         [HttpPut]
-        public IHttpActionResult UpdateOption(Guid id, ProductOption option)
+        public IHttpActionResult UpdateOption(Guid productId, Guid id, ProductOption option)
         {
+            if (Product.Load(productId) == null) return NotFound();
             var orig = ProductOption.Load(id);
             if (orig == null) return NotFound();
             orig.Name = option.Name;
             orig.Description = option.Description;
 
             if (!orig.IsNew)
+            {
                 orig.Save();
-            return Ok(ProductOption.Load(option.Id));
+                return Ok(orig);
+            }
+            else
+            {
+                return BadRequest();
+            }
         }
 
         [Route("{productId}/options/{id}")]
         [HttpDelete]
-        public IHttpActionResult DeleteOption(Guid id)
+        public IHttpActionResult DeleteOption(Guid productId, Guid id)
         {
+            if (Product.Load(productId) == null) return NotFound();
             var itemToBeDeleted = ProductOption.Load(id);
             if (itemToBeDeleted == null)
                 return NotFound();
