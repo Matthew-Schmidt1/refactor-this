@@ -95,5 +95,10 @@ namespace refactor_this.Models
                 return conn.Execute("delete from productoption where id = @id", new { id = Id }) == 1;
             }
         }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 }

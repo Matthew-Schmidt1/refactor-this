@@ -21,5 +21,10 @@ namespace refactor_this.Models
                 Items = conn.Query<ProductOption>("select * from productoption where productid = @productid", new { productid = productId }).ToList();
             }
         }
+
+        public override string ToString()
+        {
+            return JsonConvert.SerializeObject(this);
+        }
     }
 }
