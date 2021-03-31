@@ -1,4 +1,5 @@
 ﻿using refactor_this.Models;
+using Serilog;
 using System;
 using System.Net;
 using System.Web.Http;
@@ -12,6 +13,8 @@ namespace refactor_me.Controllers
         [HttpGet]
         public IHttpActionResult GetOptions(Guid productId)
         {
+            var logger = Log.ForContext("productId", productId);
+            logger.Verbose(nameof(GetOptions));
             return Ok(new ProductOptions(productId));
         }
 
@@ -19,6 +22,8 @@ namespace refactor_me.Controllers
         [HttpGet]
         public IHttpActionResult GetOption(Guid productId, Guid id)
         {
+            var logger = Log.ForContext("productId", productId).ForContext("id", id);
+            logger.Verbose(nameof(GetOption));
             if (Product.Load(productId) == null) return NotFound();
             var option = ProductOption.Load(id);
             if (option == null) return NotFound();
@@ -29,6 +34,8 @@ namespace refactor_me.Controllers
         [HttpPost]
         public IHttpActionResult CreateOption(Guid productId, ProductOption option)
         {
+            var logger = Log.ForContext("productId", productId).ForContext("ProductOption", option);
+            logger.Verbose(nameof(CreateOption));
             if (Product.Load(productId) == null) return NotFound();
             option.ProductId = productId;
 
@@ -38,6 +45,7 @@ namespace refactor_me.Controllers
             }
             else
             {
+                logger.Error($"Error in Creation something wrong with the number of elements saved {nameof(CreateOption)}");
                 return FailedToSave();
             }
         }
@@ -46,6 +54,8 @@ namespace refactor_me.Controllers
         [HttpPut]
         public IHttpActionResult UpdateOption(Guid productId, Guid id, ProductOption option)
         {
+            var logger = Log.ForContext("productId",productId).ForContext("id", id).ForContext("ProductOption",option);
+            logger.Verbose(nameof(UpdateOption));
             if (Product.Load(productId) == null) return NotFound();
             var orig = ProductOption.Load(id);
             if (orig == null) return NotFound();
@@ -56,6 +66,7 @@ namespace refactor_me.Controllers
             }
             else
             {
+                logger.Error($"Error in Creation something wrong with the number of elements saved {nameof(UpdateOption)}");
                 return FailedToSave();
             }
         }
@@ -64,6 +75,8 @@ namespace refactor_me.Controllers
         [HttpDelete]
         public IHttpActionResult DeleteOption(Guid productId, Guid id)
         {
+            var logger = Log.ForContext("id", id);
+            logger.Verbose(nameof(DeleteOption));
             if (Product.Load(productId) == null) return NotFound();
             var itemToBeDeleted = ProductOption.Load(id);
             if (itemToBeDeleted == null) return NotFound();
@@ -74,6 +87,7 @@ namespace refactor_me.Controllers
             }
             else
             {
+                logger.Error($"Error in Creation something wrong with the number of elements saved {nameof(DeleteOption)}");
                 return FailedToSave();
             }
         }
